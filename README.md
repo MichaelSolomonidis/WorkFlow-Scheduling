@@ -1,22 +1,76 @@
-The program i provide is in a rar form and written in Google Colab 
+import numpy as np
+import matplotlib.pyplot as plt
 
-This program is designed to assign tasks to different processors in a computer system, aiming to do so in the most efficient way possible. Here's how it works:
 
-Setting Up the Processors and Tasks:
 
-The program creates two types of "maps": one for processors (the devices that will perform the tasks) and another for the tasks themselves.
-Each processor has specific capabilities, like how fast it can run (its CPU) and how much energy it uses. Each task has certain needs, like how much CPU power it requires to complete.
-Calculating Costs:
+def egreedy(n_machines, n_levers, n_tasks, apoklisi, epsilon=0.1):                  #ΣΥΝΑΡΤΗΣΗ ΓΙΑ ΤΗΝ ΕΠΙΛΟΓΗ ΕΝΕΡΓΕΙΩΝ ΜΕΣΩ ΤΗΣ EGREEDY 
+  rewards = np.random.normal (loc=0, scale=apoklisi, size=(n_machines, n_levers))   #ΔΗΜΙΟΥΡΓΙΑ ΑΝΤΑΜΟΙΒΩΝ
+  q_values = np.zeros((n_machines, n_levers))                                       #ΑΡΧΙΚΟΠΟΙΗΣΗ ΠΙΝΑΚΑ q_values
+  counts = np.zeros((n_machines, n_levers))                                         #ΑΡΧΙΚΟΠΟΙΗΣΗ ΠΙΝΑΚΑ counts
+  total_r = np.zeros(n_tasks)                                                       #ΑΡΧΙΚΟΠΟΙΗΣΗ ΠΙΝΑΚΑ total_r
 
-Time: The program figures out how long it will take for each processor to complete its assigned tasks, based on the CPU needs of each task and the power of each processor.
-Energy: It also calculates the energy each processor will use while working on its tasks.
-Communication: If two tasks depend on each other but are assigned to different processors, there’s a "communication cost" involved in sending data between them.
-Optimizing the Assignment:
 
-The goal is to find the best way to assign tasks to processors so that the overall time, energy, and communication costs are as low as possible.
-The program makes sure that no processor is given more tasks than it can handle, based on its CPU capacity.
-Finding the Best Solution:
+  for action in range(n_tasks):
+    if np.random.random() < epsilon:                                                #TYXAIA ΕΠΙΛΟΓΗ 
+      machine = np.random.randint(0, n_machines)
+      lever = np.random.randint(0, n_levers)
+    else:
+      machine, lever = np.unravel_index(np.argmax(q_values), q_values.shape)
 
-Using a method called optimization, the program tests different ways of assigning tasks to processors to find the most efficient setup.
-In the end, it tells you which tasks should go to which processors and what the total cost (in time, energy, and communication) will be for this optimal setup.
-In simple terms, the program is like a manager who figures out the best way to divide work among workers (processors) to get everything done as quickly and efficiently as possible, without overworking anyone.
+
+    reward = np.random.normal(loc=rewards[machine, lever], scale=apoklisi)          #ΥΠΟΛΟΓΙΣΜΟΣ ΑΝΤΑΜΟΙΒΗΣ
+    counts[machine, lever] = counts[machine, lever] + 1                             
+    q_values[machine, lever] = q_values[machine, lever] + (reward - q_values[machine, lever]) / counts[machine, lever]     #ΥΠΟΛΟΓΙΣΜΟΣ VALUES
+    total_r[action] = reward                                                        #AΠΟΘΗΚΕΥΣΗ ΤΗΣ ΑΝΤΑΜΟΙΒΗΣ
+
+  return np.cumsum(total_r)                                                         #ΕΠΙΣΤΡΟΦΗ ΟΛΩΝ ΤΩΝ ΑΝΤΑΜΟΙΒΩΝ 
+
+
+
+def softmax(x):                                                                     #SOFTMAX ΓΙΑ ΚΑΝΟΝΙΚΟΠΟΙΗΣΗ
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
+
+
+def softmax_method(n_machines, n_levers, n_tasks, apoklisi, tau=0.1):               #ΕΠΙΛΟΓΗ ΕΝΕΡΓΕΙΩΝ ΜΕΣΩ SOFTMAX (ΣΥΝΑΡΤΗΣΗ) - ΟΤΙ ΕΚΑΝΑ ΚΑΙ ΓΙΑ ΤΗΝ EGREEDY
+   rewards = np.random.normal (loc=0, scale=apoklisi, size=(n_machines, n_levers))  
+   q_values = np.zeros((n_machines, n_levers))
+   counts = np.zeros((n_machines, n_levers))
+   total_r = np.zeros(n_tasks)
+
+
+   for action in range(n_tasks):
+      probabilities = softmax(q_values / tau)                                       #ΕΥΡΕΣΗ ΠΙΘΑΝΟΤΗΤΩΝ ΜΕΣΩ ΤΗΣ ΚΑΝΟΝΙΚΟΠΟΙΗΣΗΣ ΤΗΣ q_values Με tau
+      flat_index = np.random.choice(n_machines * n_levers, p=probabilities.ravel()) #ΕΠΙΛΕΓΩ ΜΙΑ ΘΕΣΗ ΜΕ ΒΑΣΗ ΤΙΣ ΠΙΘΑΝΟΤΗΤΕΣ ΠΟΥ ΕΓΡΑΨΑ ΠΑΡΑΠΑΝΩ
+      machine, lever = np.unravel_index(flat_index, (n_machines, n_levers))         
+      reward = np.random.normal(loc=rewards[machine, lever], scale=apoklisi)
+      counts[machine, lever] = counts[machine, lever] + 1
+      q_values[machine, lever] = q_values[machine, lever] + (reward - q_values[machine, lever]) / counts[machine, lever]
+      total_r[action] = reward
+
+   return np.cumsum(total_r)
+
+
+
+def results_plot(egreedy_antamives, softmax_antamives):                                #ΑΥΤΗ Η ΣΥΝΑΡΤΗΣΗ ΜΑΣ ΒΟΗΘΑΕΙ ΩΣΤΕ ΝΑ ΕΜΦΑΝΙΣΟΥΜΕ ΤΑ ΑΠΟΤΕΛΕΣΜΑΤΑ ΜΕΤΑΞΥ ΤΗΣ ΣΥΓΚΡΙΣΗΣ ΤΩΝ ΜΕΘΟΔΩΝ 
+  plt.plot(egreedy_antamives, label="egreedy")
+  plt.plot(softmax_antamives, label="softmax")
+  plt.xlabel("ενεργειες")
+  plt.ylabel("πληρωμή/κερδος")
+  plt.legend()
+  plt.show()
+
+
+
+
+if __name__ == "__main__":                                                             #ΒΑΣΙΚΗ ΣΥΝΑΡΤΗΣΗ
+  n_machines = int(input("δωστε τον αριθμο των μηχανηματων: "))
+  n_levers = int(input("δωσε αριθμο μοχλων για καθε μηχανημα: "))
+  n_tasks = int(input("δωσε τον αριθμο των ενεργειων: "))
+  apoklisi = float(input("δωσε τυπικη αποκλιση για τις ανταμιβες: "))
+
+  egreedy_antamives = egreedy(n_machines, n_levers, n_tasks, apoklisi)
+  softmax_antamives = softmax_method(n_machines, n_levers, n_tasks, apoklisi)
+
+  results_plot(egreedy_antamives, softmax_antamives)
